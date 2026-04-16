@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Items Detail{% endblock %}
+
+{% block content %}
+  <h2>Item</h2>
+
+  {% if item %}
+    <ul>
+        <li>
+          <strong>{{ item.name }}</strong> – ${{ "%.2f"|format(item.price) }}
+          <br>
+          <small>{{ item.description }}</small>
+        </li>
+    </ul>
+  {% else %}
+    <p>No items in the database yet.</p>
+  {% endif %}
+
+  <hr>
+{% endblock %}

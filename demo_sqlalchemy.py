@@ -1,3 +1,4 @@
+
 import sqlite3
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -28,12 +29,6 @@ SessionLocal = sessionmaker(
 class Base(DeclarativeBase):
     pass
 
-# ─── App ────────────────────────────────────────────────────
-app = FastAPI(
-    title="FastAPI + SQLAlchemy MVP",
-    lifespan=lifespan,
-)
-DATABASE = "app.db"
 
 
 def get_db() -> Session:
@@ -89,11 +84,55 @@ async def lifespan(app: FastAPI):
     # Shutdown: (optional) place cleanup here
     print("Shutting down app")
 
+# ─── App ────────────────────────────────────────────────────
+app = FastAPI(
+    title="FastAPI + SQLAlchemy MVP",
+    lifespan=lifespan,
+)
+DATABASE = "app.db"
+
+# Mount /static
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Templates directory
+templates = Jinja2Templates(directory="templates")
 
 @app.get("/")
 def root():
     return {"status": "ok", "message": "FastAPI + SQLAlchemy MVP"}
 
+@app.get("/items/ui", response_class=HTMLResponse)
+async def items_page(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    items = db.query(Item).all()
+    return templates.TemplateResponse(
+        "items_list.html",
+        {
+            "request": request,
+            "items": items,
+        },
+    )
+
+@app.post("/items/ui")
+async def create_item_from_form(
+    name: str = Form(...),
+    description: str = Form(""),
+    price: float = Form(...),
+    db: Session = Depends(get_db),
+):
+    db_item = Item(
+        name=name,
+        description=description,
+        price=price,
+    )
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+
+    # Redirect back to the list page (303 to avoid form resubmit)
+    return RedirectResponse(url="/items/ui", status_code=303)
 
 @app.post("/items", response_model=ItemResponse, status_code=201)
 def create_item(
